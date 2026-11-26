@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Restaurant & Fast Food Mobile POS</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { margin: 0; background: #e2e8f0; color: #0f172a; padding-bottom: 70px; }
+
+        /* Top Header Bar */
+        .top-bar { background: #0f172a; color: #fff; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .brand { font-size: 16px; font-weight: bold; color: #38bdf8; }
+        .clock { font-size: 11px; color: #cbd5e1; }
+
+        /* Order Type Tabs (Dine In, Take Away, Delivery) */
+        .order-types { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 8px; background: #1e293b; }
+        .type-btn { padding: 8px 4px; border: none; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; background: #334155; color: #e2e8f0; transition: 0.2s; }
+        .type-btn.active { background: #10b981; color: #fff; box-shadow: 0 0 8px rgba(16,185,129,0.5); }
+
+        /* Customer & Table Info */
+        .meta-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 8px; background: #fff; border-bottom: 1px solid #cbd5e1; }
+        .meta-bar input, .meta-bar select { width: 100%; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 12px; }
+
+        /* Main Layout (Responsive for Mobile & Tablet/PC) */
+        .pos-wrapper { display: flex; flex-direction: column; gap: 10px; padding: 8px; max-width: 1200px; margin: auto; }
+        @media(min-width: 768px) {
+            .pos-wrapper { flex-direction: row; align-items: flex-start; }
+            .menu-panel { flex: 1.4; }
+            .bill-panel { flex: 1; position: sticky; top: 55px; }
+        }
+
+        /* Category Filter Pills */
+        .cat-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; scrollbar-width: none; }
+        .cat-pill { background: #fff; border: 1px solid #94a3b8; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; white-space: nowrap; cursor: pointer; }
+        .cat-pill.active { background: #0284c7; color: #fff; border-color: #0284c7; }
+
+        /* Menu Grid Cards (Like the POS screen) */
+        .menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        @media(min-width: 500px) { .menu-grid { grid-template-columns: repeat(4, 1fr); } }
+        
+        .item-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.08); border: 1px solid #cbd5e1; cursor: pointer; text-align: center; transition: transform 0.1s; display: flex; flex-direction: column; justify-content: space-between; }
+        .item-card:active { transform: scale(0.95); background: #f0f9ff; }
+        .item-icon { font-size: 28px; padding: 10px 0 4px; background: linear-gradient(135deg, #f8fafc, #e2e8f0); }
+        .item-name { font-size: 12px; font-weight: bold; padding: 4px; color: #1e293b; line-height: 1.2; }
+        .item-price { background: #0f172a; color: #38bdf8; font-size: 12px; font-weight: bold; padding: 4px; }
+
+        /* Bill / Cart Section */
+        .bill-panel { background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.1); border: 1px solid #94a3b8; }
+        .bill-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 8px; }
+        .kot-badge { background: #f59e0b; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+
+        .cart-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .cart-table th { background: #0f172a; color: #fff; padding: 6px 4px; text-align: left; }
+        .cart-table td { padding: 6px 4px; border-bottom: 1px solid #e2e8f0; }
+        .qty-btn { background: #e2e8f0; border: none; width: 24px; height: 24px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .qty-btn.plus { background: #10b981; color: #fff; }
+        .qty-btn.del { background: #ef4444; color: #fff; }
+
+        /* Extra Charges & Discount */
+        .charges-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+        .charges-box label { font-size: 10px; font-weight: bold; color: #475569; display: block; }
+        .charges-box input { width: 100%; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; }
+
+        /* Totals Box */
+        .totals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; text-align: center; }
+        .total-tile { background: #0f766e; color: #fff; padding: 8px 4px; border-radius: 6px; }
+        .total-tile.grand { background: #15803d; }
+        .total-tile span { display: block; font-size: 10px; opacity: 0.9; }
+        .total-tile strong { font-size: 15px; }
+
+        /* Payment & Action Buttons */
+        .action-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 10px; }
+        .act-btn { padding: 10px; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-save { background: #0284c7; }
+        .btn-kot { background: #d97706; }
+        .btn-wa { background: #16a34a; }
+        .btn-clear { background: #dc2626; }
+
+        /* Printable Thermal Receipt (Hidden on screen, shown on Print) */
+        #thermalReceipt { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #thermalReceipt, #thermalReceipt * { visibility: visible; }
+            #thermalReceipt { display: block; position: absolute; left: 0; top: 0; width: 280px; padding: 10px; font-family: monospace; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Header -->
+    <div class="top-bar">
+        <div class="brand">🍕 FAST FOOD MOBILE POS</div>
+        <div>
+            <button onclick="addNewMenuItem()" style="background:#38bdf8; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">+ Add Item</button>
+            <span class="clock" id="liveClock"></span>
+        </div>
+    </div>
+
+    <!-- Order Type Selector -->
+    <div class="order-types">
+        <button class="type-btn active" onclick="setOrderType(this, 'DINE IN')">🍽️ DINE IN</button>
+        <button class="type-btn" onclick="setOrderType(this, 'TAKE AWAY')">🛍️ TAKE AWAY</button>
+        <button class="type-btn" onclick="setOrderType(this, 'DELIVERY')">🛵 DELIVERY</button>
+        <button class="type-btn" onclick="setOrderType(this, 'EXPRESS')">⚡ EXPRESS</button>
+    </div>
+
+    <!-- Customer / Table Info -->
+    <div class="meta-bar">
+        <input type="text" id="tableNo" placeholder="Table / Token #">
+        <input type="text" id="custName" placeholder="Customer Name">
+        <select id="payMode">
+            <option value="CASH">💵 CASH</option>
+            <option value="JAZZCASH">📱 JAZZCASH</option>
+            <option value="EASYPAISA">📱 EASYPAISA</option>
+            <option value="CARD">💳 CARD</option>
+        </select>
+    </div>
+
+    <div class="pos-wrapper">
+        <!-- Left/Top: Menu Items -->
+        <div class="menu-panel">
+            <div class="cat-scroll" id="categoryBar"></div>
+            <div class="menu-grid" id="menuGrid"></div>
+        </div>
+
+        <!-- Right/Bottom: Current Order & Billing -->
+        <div class="bill-panel">
+            <div class="bill-header">
+                <div>
+                    <strong style="font-size:14px;" id="displayOrderType">TAKE AWAY</strong>
+                    <div style="font-size:11px; color:#64748b;">Bill #<span id="billNumber">101</span></div>
+                </div>
+                <span class="kot-badge">KOT #<span id="kotNumber">01</span></span>
+            </div>
+
+            <div style="max-height: 220px; overflow-y: auto;">
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="cartBody">
+                        <tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:15px;">Tap items from menu to add</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Extra Charges & Discount -->
+            <div class="charges-box">
+                <div>
+                    <label>Service / Tax</label>
+                    <input type="number" id="serviceCharge" value="0" oninput="renderCart()">
+                </div>
+                <div>
+                    <label>Delivery Fee</label>
+                    <input type="number" id="deliveryCharge" value="0" oninput="renderCart()">
+                </div>
+                <div>
+                    <label>Discount (Rs)</label>
+                    <input type="number" id="discountAmt" value="0" oninput="renderCart()">
+                </div>
+            </div>
+
+            <!-- Cash Received -->
+            <div style="display:flex; gap:8px; margin-top:8px; align-items:center; background:#f1f5f9; padding:6px; border-radius:6px;">
+                <label style="font-size:12px; font-weight:bold;">Cash Paid:</label>
+                <input type="number" id="cashPaid" placeholder="0" style="flex:1; padding:5px; border:1px solid #cbd5e1; border-radius:4px;" oninput="calcBalance()">
+                <div style="font-size:12px; font-weight:bold; color:#0f766e;">Change: Rs <span id="changeDue">0</span></div>
+            </div>
+
+            <!-- Totals -->
+            <div class="totals-grid">
+                <div class="total-tile">
+                    <span>TOTAL ITEMS</span>
+                    <strong id="totalQty">0</strong>
+                </div>
+                <div class="total-tile">
+                    <span>SUB TOTAL</span>
+                    <strong>Rs <span id="subTotal">0</span></strong>
+                </div>
+                <div class="total-tile grand">
+                    <span>NET BILL</span>
+                    <strong>Rs <span id="netTotal">0</span></strong>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-grid">
+                <button class="act-btn btn-save" onclick="printReceipt('BILL')">🖨️ SAVE & PRINT BILL</button>
+                <button class="act-btn btn-kot" onclick="printReceipt('KOT')">🧾 KITCHEN TOKEN (KOT)</button>
+                <button class="act-btn btn-wa" onclick="sendWhatsAppBill()">📲 SEND WHATSAPP</button>
+                <button class="act-btn btn-clear" onclick="clearCart()">🗑️ CLEAR / NEW</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thermal Print Area -->
+    <div id="thermalReceipt"></div>
+
+<script>
+    // Default Menu Items (Matching the POS image categories)
+    const defaultMenu = [
+        { id: 1, name: "Regular Pizza (M)", price: 950, cat: "Pizza", icon: "🍕" },
+        { id: 2, name: "Special Flavour Pizza", price: 1350, cat: "Pizza", icon: "🍕" },
+        { id: 3, name: "Extra Pizza Topping", price: 200, cat: "Pizza", icon: "🧀" },
+        { id: 4, name: "Zinger Burger", price: 380, cat: "Burgers", icon: "🍔" },
+        { id: 5, name: "Chicken Shawarma", price: 220, cat: "Wraps", icon: "🌯" },
+        { id: 6, name: "Paratha Roll", price: 280, cat: "Wraps", icon: "🥙" },
+        { id: 7, name: "Spin Rolls (4 Pcs)", price: 450, cat: "Wraps", icon: "🍥" },
+        { id: 8, name: "Lazania Pasta", price: 650, cat: "Pasta", icon: "🍝" },
+        { id: 9, name: "Broast Quarter", price: 550, cat: "Broast", icon: "🍗" },
+        { id: 10, name: "Nuggets (10 Pcs)", price: 420, cat: "Snacks", icon: "🍤" },
+        { id: 11, name: "Club Sandwich", price: 400, cat: "Snacks", icon: "🥪" },
+        { id: 12, name: "Masala Fries", price: 200, cat: "Snacks", icon: "🍟" },
+        { id: 13, name: "Special Platter", price: 1100, cat: "Deals", icon: "🍱" },
+        { id: 14, name: "Student Deal 1", price: 499, cat: "Deals", icon: "🎁" },
+        { id: 15, name: "Cold Drink 1.5L", price: 180, cat: "Drinks", icon: "🥤" },
+        { id: 16, name: "Cold Drink Reg", price: 90, cat: "Drinks", icon: "🥫" }
+    ];
+
+    let menuItems = JSON.parse(localStorage.getItem('pos_menu_items')) || defaultMenu;
+    let cart = [];
+    let selectedCategory = "All";
+    let currentOrderType = "TAKE AWAY";
+    let billCounter = parseInt(localStorage.getItem('pos_bill_no')) || 101;
+    let kotCounter = parseInt(localStorage.getItem('pos_kot_no')) || 1;
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('liveClock').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function setOrderType(btn, type) {
+        document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentOrderType = type;
+        document.getElementById('displayOrderType').innerText = type;
+    }
+
+    function renderCategories() {
+        const cats = ["All", ...new Set(menuItems.map(i => i.cat))];
+        const bar = document.getElementById('categoryBar');
+        bar.innerHTML = cats.map(c => 
+            `<div class="cat-pill ${c === selectedCategory ? 'active' : ''}" onclick="filterCategory('${c}')">${c}</div>`
+        ).join('');
+    }
+
+    function filterCategory(cat) {
+        selectedCategory = cat;
+        renderCategories();
+        renderMenu();
+    }
+
+    function renderMenu() {
+        const grid = document.getElementById('menuGrid');
+        const filtered = selectedCategory === "All" ? menuItems : menuItems.filter(i => i.cat === selectedCategory);
+        grid.innerHTML = filtered.map(item => `
+            <div class="item-card" onclick="addToCart(${item.id})">
+                <div class="item-icon">${item.icon}</div>
+                <div class="item-name">${item.name}</div>
+                <div class="item-price">Rs ${item.price}</div>
+            </div>
+        `).join('');
+    }
+
+    function addToCart(id) {
+        const item = menuItems.find(i => i.id === id);
+        const existing = cart.find(c => c.id === id);
+        if (existing) {
+            existing.qty += 1;
+        } else {
+            cart.push({ ...item, qty: 1 });
+        }
+        renderCart();
+    }
+
+    function updateQty(index, delta) {
+        cart[index].qty += delta;
+        if (cart[index].qty <= 0) {
+            cart.splice(index, 1);
+        }
+        renderCart();
+    }
+
+    function renderCart() {
+        const tbody = document.getElementById('cartBody');
+        if (cart.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:15px;">Tap items from menu to add</td></tr>`;
+        } else {
+            tbody.innerHTML = cart.map((item, idx) => `
+                <tr>
+                    <td><strong>${item.name}</strong></td>
+                    <td style="white-space:nowrap;">
+                        <button class="qty-btn" onclick="updateQty(${idx}, -1)">-</button>
+                        <span style="margin:0 5px; font-weight:bold;">${item.qty}</span>
+                        <button class="qty-btn plus" onclick="updateQty(${idx}, 1)">+</button>
+                    </td>
+                    <td>${item.price}</td>
+                    <td><strong>${item.price * item.qty}</strong></td>
+                    <td><button class="qty-btn del" onclick="updateQty(${idx}, -999)">×</button></td>
+                </tr>
+            `).join('');
+        }
+
+        const totalQty = cart.reduce((sum, i) => sum + i.qty, 0);
+        const subTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+        const service = parseFloat(document.getElementById('serviceCharge').value) || 0;
+        const delivery = parseFloat(document.getElementById('deliveryCharge').value) || 0;
+        const discount = parseFloat(document.getElementById('discountAmt').value) || 0;
+
+        const netTotal = Math.max(0, subTotal + service + delivery - discount);
+
+        document.getElementById('totalQty').innerText = totalQty;
+        document.getElementById('subTotal').innerText = subTotal;
+        document.getElementById('netTotal').innerText = netTotal;
+        calcBalance();
+    }
+
+    function calcBalance() {
+        const net = parseFloat(document.getElementById('netTotal').innerText) || 0;
+        const paid = parseFloat(document.getElementById('cashPaid').value) || 0;
+        const change = paid > net ? paid - net : 0;
+        document.getElementById('changeDue').innerText = change;
+    }
+
+    function clearCart() {
+        cart = [];
+        document.getElementById('serviceCharge').value = 0;
+        document.getElementById('deliveryCharge').value = 0;
+        document.getElementById('discountAmt').value = 0;
+        document.getElementById('cashPaid').value = '';
+        document.getElementById('tableNo').value = '';
+        document.getElementById('custName').value = '';
+        renderCart();
+    }
+
+    function addNewMenuItem() {
+        const name = prompt("Enter Item Name (e.g., Chicken Tikka Pizza):");
+        if (!name) return;
+        const price = parseFloat(prompt("Enter Price (Rs):"));
+        if (!price) return;
+        const cat = prompt("Enter Category (Pizza, Burgers, Wraps, Broast, Drinks, Deals):", "Pizza") || "Other";
+        
+        menuItems.push({ id: Date.now(), name, price, cat, icon: "🍽️" });
+        localStorage.setItem('pos_menu_items', JSON.stringify(menuItems));
+        renderCategories();
+        renderMenu();
+    }
+
+    function printReceipt(type) {
+        if (cart.length === 0) return alert("Please add items first!");
+        
+        const receiptDiv = document.getElementById('thermalReceipt');
+        const dateStr = new Date().toLocaleString();
+        const table = document.getElementById('tableNo').value || 'N/A';
+        const cust = document.getElementById('custName').value || 'Walk-in';
+        const net = document.getElementById('netTotal').innerText;
+        const disc = document.getElementById('discountAmt').value;
+
+        let itemsHtml = cart.map(i => 
+            `<tr><td>${i.name}</td><td style="text-align:center;">${i.qty}</td><td style="text-align:right;">${type === 'KOT' ? '' : i.price * i.qty}</td></tr>`
+        ).join('');
+
+        if (type === 'KOT') {
+            receiptDiv.innerHTML = `
+                <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:5px;">
+                    <h3 style="margin:0;">*** KITCHEN TOKEN (KOT) ***</h3>
+                    <div>KOT #${kotCounter} | ${currentOrderType}</div>
+                    <div>Table: ${table} | ${dateStr}</div>
+                </div>
+                <table style="width:100%; margin-top:8px; font-size:13px;">
+                    <tr><th style="text-align:left;">ITEM</th><th>QTY</th><th></th></tr>
+                    ${itemsHtml}
+                </table>
+                <div style="border-top:1px dashed #000; margin-top:8px; padding-top:5px; text-align:center;">Prepare Immediately</div>
+            `;
+            kotCounter++;
+            localStorage.setItem('pos_kot_no', kotCounter);
+            document.getElementById('kotNumber').innerText = String(kotCounter).padStart(2, '0');
+        } else {
+            receiptDiv.innerHTML = `
+                <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:5px;">
+                    <h3 style="margin:0;">FAST FOOD & PIZZA POINT</h3>
+                    <div>Bill #${billCounter} | ${currentOrderType}</div>
+                    <div>Customer: ${cust} | Table: ${table}</div>
+                    <div style="font-size:10px;">${dateStr}</div>
+                </div>
+                <table style="width:100%; margin-top:8px; font-size:12px;">
+                    <tr><th style="text-align:left;">ITEM</th><th>QTY</th><th style="text-align:right;">AMT</th></tr>
+                    ${itemsHtml}
+                </table>
+                <div style="border-top:1px dashed #000; margin-top:8px; padding-top:5px; text-align:right;">
+                    <div>Discount: Rs ${disc}</div>
+                    <h3 style="margin:4px 0;">NET BILL: Rs ${net}</h3>
+                    <div>Payment: ${document.getElementById('payMode').value}</div>
+                </div>
+                <div style="text-align:center; margin-top:10px; font-size:11px;">Thank You! Visit Again</div>
+            `;
+            billCounter++;
+            localStorage.setItem('pos_bill_no', billCounter);
+            document.getElementById('billNumber').innerText = billCounter;
+        }
+
+        window.print();
+    }
+
+    function sendWhatsAppBill() {
+        if (cart.length === 0) return alert("Please add items first!");
+        const phone = prompt("Customer WhatsApp Number (e.g. 923001234567):");
+        if (!phone) return;
+
+        let msg = `*FAST FOOD POS - ORDER RECEIPT*%0A` +
+                  `Bill #${billCounter} (${currentOrderType})%0A` +
+                  `------------------------%0A`;
+        cart.forEach(i => {
+            msg += `${i.name} x ${i.qty} = Rs ${i.price * i.qty}%0A`;
+        });
+        msg += `------------------------%0A` +
+               `*NET TOTAL: Rs ${document.getElementById('netTotal').innerText}*%0A` +
+               `Thank you for your order!`;
+
+        window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    }
+
+    // Initialize
+    document.getElementById('billNumber').innerText = billCounter;
+    document.getElementById('kotNumber').innerText = String(kotCounter).padStart(2, '0');
+    renderCategories();
+    renderMenu();
+</script>
+</body>
+</html>
